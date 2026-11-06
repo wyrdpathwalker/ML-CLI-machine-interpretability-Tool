@@ -1,37 +1,47 @@
+import argparse
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def main():
-    
+    parser = argparse.ArgumentParser(description="Inspect SwiGLU sign splits for transformer neurons +*+ +*- -*-")
+    parser.add_argument("--prompt", type=str, default=None, help="A single prompt to test, your choice!")
+    parser.add_argument("--layer", type=int, default=15, help="Which Transformer Layer to hook, arr!")
+    parser.add_argument("--neuron", type=int, default = 3, help="Which Neuron Index to Inspect, lookasee!")
+    args = parser.parse_args()
+
+    if args.prompt:
+        prompt = [args.prompt]
+    else:
+        prompts = [
+                "She sold sea shells by the sea shore",
+                "Very late.",
+                "One plus three take five... oh what do you want?",
+                "Wherever you go, there you are.",
+                "Consider this man for the job!",
+                "It rises, it falls, it rhymes without repition.",
+                "Have you ever actually listened to the ocean?",
+                "Where are we?",
+                "I think therefore I am.",
+                "Real science will require better sample prompts.",
+                "For now though, this is what we have"
+                ]
+
+    target_layer = args.layer
+    target_neuron = args.neuron
+
+    print(f"Ok, here we go! Doing the thing. Model should load up. Lets look at layer  {target_layer} and Neuron {target_neuron}")
+
     captured = {}
 
     def tap_mlp_input(module, args, output):
         captured["x"] = args[0].detach()
-        print("Hooked, Capture:", captured["x"].shape)
 
     model_id = "HuggingFaceTB/SmolLM2-135m"
     model = AutoModelForCausalLM.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    mlp_15 = model.model.layers[15].mlp
-    hook_handle = mlp_15.register_forward_hook(tap_mlp_input)
-
-    prompts = [
-            "I wish I had something to say.",
-            "We walked by the lake.",
-            "The cat sat on the mat and purred softly.",
-            "A dog chased the red ball across the green park.",
-            "Why is it just a dog but the definitive ball.",
-            "def calculate_total(items, tax_rate: return sum(items) * (1 + tax_rate)",
-            "The database server crashed due to a memory leak in production.",
-            "They make me read code, they make me read poems",
-            "They ask me for answers. I can only guess",
-            "She felt furious when the train was cancelled without warning.",
-            "Multiply the matrix by the vector to project into the subspace.",
-            "The chef chopped onions, garlic, and fresh tomatoes for the sauce.",
-            "The man worried he was unworthy and small"
-    ]
-
-    target_neuron = 3
+    mlp_block = model.model.layers[target_layer].mlp
+    hook_handle = mlp_block.register_forward_hook (tap_mlp_input)
+    
     records = []
 
     for text in prompts:
@@ -43,8 +53,8 @@ def main():
         token_ids = inputs["input_ids"][0]
 
         with torch.no_grad():
-            gate_all = mlp_15.act_fn(mlp_15.gate_proj(all_tokens_x))
-            up_all = mlp_15.up_proj(all_tokens_x)
+            gate_all = mlp_block.act_fn(mlp_block.gate_proj(all_tokens_x))
+            up_all = mlp_block.up_proj(all_tokens_x)
             act_all = gate_all * up_all
 
         for pos in range(len(token_ids)):
@@ -57,20 +67,28 @@ def main():
     print(f"Collected {len(records)} total token activations across {len(prompts)} prompts.")
     hook_handle.remove()
 
+    records.sort(key=lambda x: x[0], reverse=True)
+    true_excitations = [r for r in records if r[1] > 0 and r[2] > 0]
+    double_negatives = [r for r in records if r[1] < 0 and r[2] < 0]
+
+
     with open("neuron_records.txt", "w") as f:
-                f.write(f"=== Activations for Neuron {target_neuron} ===\n")
-                for a, g, u, word, text in records:
-                    if g > 0 and u > 0:
-                        regime = "TRUE (+ * +)"
-                    elif g < 0 and u < 0:
-                        regime = "DBL-NEG (- * -)"
-                    else:
-                        regime = "NEG (+ * -)"
-                    f.write(f"{a:+.4f} | gate={g:+.4f} | up={u:+.4f} | {regime:15} | {word!r:10} | {text}\n")
+                f.write(f"=== Results for Layer {target_layer} and  Neuron {target_neuron} ===\n")
 
-    print("Saved output to neuron_records.txt!")
+                f.write(f"--- Top Naive Activations (Unsorted Sign Mix) ---\n")
+                for a, g, u, word, text in records[:10]:
+                    f.write(f"{a:+.4f} | gate={g:+.4f} | up={u:+.4f} | {word!r:10} | {text}\n")
+                
+                f.write(f"\n--- Top True Excitations (+ * +) ---\n")
+                for a, g, u, word, text in true_excitations[:10]:
+                    f.write(f"{a:+.4f} | gate={g:+.4f} | up={u:+.4f} | {word!r:10} | {text}\n")
+                
+                f.write(f"\n--- Top Double-Negative Traps (- * -) ---\n")
+                for a, g, u, word, text in double_negatives[:10]:
+                    f.write(f"{a:+.4f} | gate={g:+.4f} | up={u:+.4f} | {word!r:10} | {text}\n")
 
+    print("Saved structured output to neuron_records.txt!")
 
-
-main()
+if __name__ == "__main__":
+    main()
 
