@@ -10,7 +10,7 @@ def main():
     args = parser.parse_args()
 
     if args.prompt:
-        prompt = [args.prompt]
+        prompts = [args.prompt]
     else:
         prompts = [
                 "She sold sea shells by the sea shore",
