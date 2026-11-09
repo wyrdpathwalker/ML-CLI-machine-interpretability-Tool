@@ -1,6 +1,8 @@
+import os
 import argparse
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from datetime import datetime
 
 def main():
     parser = argparse.ArgumentParser(description="Inspect SwiGLU sign splits for transformer neurons +*+ +*- -*-")
@@ -23,7 +25,14 @@ def main():
                 "Where are we?",
                 "I think therefore I am.",
                 "Real science will require better sample prompts.",
-                "For now though, this is what we have"
+                "For now though, this is what we have",
+                "Eight plus five is thirteen.",
+                "8 + 5 = 13",
+                "Eight + Five = Thirteen",
+                "Here: Take this comma, may it serve you... as well as it served me!",
+                "He updated the software to version one point one.",
+                "Please update the software to version one.",
+                "Machine, Update Software"
                 ]
 
     target_layer = args.layer
@@ -70,11 +79,23 @@ def main():
     records.sort(key=lambda x: x[0], reverse=True)
     true_excitations = [r for r in records if r[1] > 0 and r[2] > 0]
     double_negatives = [r for r in records if r[1] < 0 and r[2] < 0]
+    top_10_naive = records[:10]
+    inversion_count = sum(1 for a, g, u, w, t in top_10_naive if g < 0 and u < 0)
+    
+    if args.prompt:
+        prompt_label = prompts[0].split(maxsplit=1)[0].strip(",.!?:;")
+    else:
+        prompt_label = "DefaultCorpus"
 
-
-    with open("neuron_records.txt", "w") as f:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    os.makedirs("Records", exist_ok=True)
+    filename = f"Records/{prompt_label}_L{target_layer}_N{target_neuron}_{timestamp}.txt"
+    with open(filename, "w") as f:
                 f.write(f"=== Results for Layer {target_layer} and  Neuron {target_neuron} ===\n")
-
+                
+                f.write(f"Top-10 Double Negative Inversions: {inversion_count}/10({inversion_count * 10}%)\n")
+                
                 f.write(f"--- Top Naive Activations (Unsorted Sign Mix) ---\n")
                 for a, g, u, word, text in records[:10]:
                     f.write(f"{a:+.4f} | gate={g:+.4f} | up={u:+.4f} | {word!r:10} | {text}\n")
@@ -87,7 +108,7 @@ def main():
                 for a, g, u, word, text in double_negatives[:10]:
                     f.write(f"{a:+.4f} | gate={g:+.4f} | up={u:+.4f} | {word!r:10} | {text}\n")
 
-    print("Saved structured output to neuron_records.txt!")
+    print(f"Saved structured output for {target_neuron} at {target_layer}!")
 
 if __name__ == "__main__":
     main()
