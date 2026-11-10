@@ -5,6 +5,6 @@ lib/
 lib64/
 pyvenv.cfg
 neuron_records.txt
-neuron_*.txt
+neuron*.txt
 Records/
 .venv/
