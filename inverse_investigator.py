@@ -47,10 +47,8 @@ def main():
         
         print(f"Howdy, welcome. Calling model and running checks. Gathering results for Layer {target_layer}.")
 
-#Call The model here, once.
     model, tokenizer = load_model(args.model)
 
-#Create a CSV file, First we build the file name parts, then make a directory called Records, then combine the filename in the directory. Then we call open, and use pythons csv writer.
     if args.prompt:
         prompt_label = prompts[0].split(maxsplit=1)[0].strip("!?,.:;")
     else: 
@@ -60,15 +58,20 @@ def main():
     layer_label = args.layer
 
     neuron_label = args.neuron if args.neuron is not None else "all"
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d")
     os.makedirs("Records", exist_ok=True)
-    filename = f"Records/{prompt_label}_L{layer_label}_N{neuron_label}_TestDateTime{timestamp}.csv"
+    filename = f"Records/Captures_{timestamp}.csv"
+    file_exists = os.path.isfile(filename)
 
-    with open(filename, "w", newline="") as f:
+    with open(filename, "a", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Layer", "Neuron", "Top10_Inversions", "Inversion_Pct", "Max_True_Act", "Top True Word", "Max_DblNeg_Act", "Top_DblNeg_Word"])
 
-#Loop Over Neurons in Layer
+        if not file_exists:
+            writer.writerow([
+                "Layer", "Neuron", "Top10_Inversions", "Inversion_Pct", 
+                "Max_True_Act", "Top True Word", "Max_DblNeg_Act", "Top_DblNeg_Word"
+                ])
+
         for n in target_neuron:
             records, true_exc, dbl_neg, top_10, inv_count = analyze_neuron(model, tokenizer, prompts, target_layer, n)
             print(f"Working on {n}")
