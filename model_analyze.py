@@ -8,7 +8,9 @@ def load_model (model_id: str):
     print(f"Onward! Load Model Complete and returning Model and Tokenizer to Main Function Now")
     return model, tokenizer
 
-
+def get_vector(word, tokenizer, embed_matrix):
+    token_id = tokenizer.encode(word, add_special_tokens=False)[0]
+    return embed_matrix[token_id]
 
 
 def analyze_neuron(model, tokenizer, prompts, target_layer, target_neuron):

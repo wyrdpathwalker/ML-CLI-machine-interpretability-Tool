@@ -6,7 +6,7 @@ from model_analyze import load_model, analyze_neuron
 
 def main():
     parser = argparse.ArgumentParser(description="Inspect SwiGLU sign splits")
-    parser.add_argument ("--prompt", type=str, default=None, help="Enter a single custom prompt to test")
+    parser.add_argument("--prompt", type=str, default=None, help="Enter a single custom prompt to test")
     parser.add_argument("--neuron", type=int, default=None, help="Pick a specific neuron. Default will run a loop over all neurons!")
     parser.add_argument("--layer", type=int, default=None, help="Pick the transormer layer you'd like to test, default is all.")
     parser.add_argument("--model", type=str, default="HuggingFaceTB/SmolLM2-135M", help="Enter a specific model to use. Default is SmolLM2-135m")
@@ -37,7 +37,7 @@ def main():
                    ]
 
     if args.neuron is None:
-        target_neuron = range(3)
+        target_neuron = range(1536)
     else:
         target_neuron = [args.neuron]
 
@@ -73,6 +73,8 @@ def main():
             print(f"Getting results from the analyzer, writing")
             for row in layer_rows:
                 writer.writerow(row)
+
+    print(f"Ok! That should be it. Your results are saved to {filename}")
 
 if __name__ == "__main__":
     main()
